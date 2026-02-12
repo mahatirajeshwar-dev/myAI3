@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { issueEmployeeToken } from '@/lib/auth/jwt';
 
+function parseCsvEnv(name: string): string[] {
+  return (process.env[name] ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export async function POST(req: Request) {
   const body = await req.json() as {
     employeeId?: string;
     employeeName?: string;
-    role?: string;
   };
 
   const employeeId = body.employeeId?.trim();
@@ -14,20 +20,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'employeeId is required' }, { status: 400 });
   }
 
-  const allowList = process.env.ALLOWED_EMPLOYEE_IDS
-    ?.split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
+  const allowList = parseCsvEnv('ALLOWED_EMPLOYEE_IDS');
 
-  if (allowList?.length && !allowList.includes(employeeId)) {
+  if (allowList.length && !allowList.includes(employeeId)) {
     return NextResponse.json({ error: 'Unauthorized employee ID' }, { status: 403 });
   }
+
+  const hrUploaderIds = parseCsvEnv('HR_UPLOADER_IDS');
+  const role = hrUploaderIds.includes(employeeId) ? 'hr' : 'employee';
 
   const token = await issueEmployeeToken({
     employeeId,
     employeeName: body.employeeName,
-    role: body.role ?? 'employee',
+    role,
   });
 
-  return NextResponse.json({ token });
+  return NextResponse.json({ token, role });
 }

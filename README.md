@@ -22,8 +22,16 @@ Copy `env.template` and configure:
 - `PINECONE_INDEX_NAME`
 - `JWT_SECRET`
 - `ALLOWED_EMPLOYEE_IDS` (optional comma-separated allow-list)
+- `HR_UPLOADER_IDS` (comma-separated employee IDs allowed to upload docs)
 
 ## Uploading 50+ HR docs and dummy data
+
+
+## Restrict uploads to HR only
+
+- Upload APIs are JWT-protected and also role-gated.
+- Employee IDs listed in `HR_UPLOADER_IDS` receive `role=hr` when requesting token.
+- Only tokens with `role=hr` can call `/api/ingestion/*`; all others receive 403.
 
 After employee login, use the **Knowledge Base Upload** panel in the chat page:
 
