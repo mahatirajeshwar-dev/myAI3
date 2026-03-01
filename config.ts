@@ -59,4 +59,4 @@ export const MODERATION_DENIAL_MESSAGE_VIOLENCE_GRAPHIC = "I can't discuss graph
 export const MODERATION_DENIAL_MESSAGE_DEFAULT = "Your message violates our guidelines. I can't answer that.";
 
 export const PINECONE_TOP_K = 40;
-export const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME ?? "abis-employee-chatbot";
+export const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME ?? "aira-smsms";
