@@ -48,10 +48,17 @@ export async function issueEmployeeToken(input: {
   employeeName?: string;
   expiresInHours?: number;
 }): Promise<string> {
+<<<<<<< HEAD
   const secret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
 
   if (!secret) {
     throw new Error('Neither JWT_SECRET nor JWT_SECRET_KEY is configured in your environment variables.');
+=======
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error('JWT_SECRET is not configured');
+>>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -73,10 +80,17 @@ export async function issueEmployeeToken(input: {
 }
 
 export async function verifyEmployeeToken(token: string): Promise<JwtPayload | null> {
+<<<<<<< HEAD
   const secret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
 
   if (!secret) {
     throw new Error('Neither JWT_SECRET nor JWT_SECRET_KEY is configured in your environment variables.');
+=======
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error('JWT_SECRET is not configured');
+>>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
   }
 
   const [encodedHeader, encodedPayload, encodedSignature] = token.split('.');

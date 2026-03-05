@@ -17,8 +17,11 @@ export const metadata: Metadata = {
   description: "Employee support chatbot for ABIS Food Pvt Ltd",
 };
 
+<<<<<<< HEAD
 import { Toaster } from "sonner";
 
+=======
+>>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,10 +29,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+<<<<<<< HEAD
       <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
         {children}
         <Toaster />
       </body>
+=======
+      <body className={`${inter.variable} ${geistMono.variable} antialiased`}>{children}</body>
+>>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
     </html>
   );
 }

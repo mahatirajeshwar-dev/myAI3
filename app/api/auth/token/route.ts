@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized employee ID' }, { status: 403 });
   }
 
+<<<<<<< HEAD
   try {
     const token = await issueEmployeeToken({
       employeeId,
@@ -37,4 +38,13 @@ export async function POST(req: Request) {
       error: error instanceof Error ? error.message : 'Failed to issue token'
     }, { status: 500 });
   }
+=======
+  const token = await issueEmployeeToken({
+    employeeId,
+    employeeName: body.employeeName,
+    role: body.role ?? 'employee',
+  });
+
+  return NextResponse.json({ token });
+>>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
 }

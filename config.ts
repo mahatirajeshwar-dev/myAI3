@@ -13,7 +13,11 @@ function createModel(): LanguageModel {
     return openrouter.chat(process.env.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini");
   }
 
+<<<<<<< HEAD
   return openai(process.env.OPENAI_MODEL ?? "gpt-4o");
+=======
+  return openai(process.env.OPENAI_MODEL ?? "gpt-4.1");
+>>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
 }
 
 export const MODEL = createModel();
