@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/mahat/OneDrive/Desktop/myAI3-main/app/page.tsx"],"sourcesContent":["export default function Chat() {\n  return <div>DEBUG: If you see this, the page is rendering correctly.</div>;\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBAAO,8OAAC;kBAAI;;;;;;AACd"}}]
+}
