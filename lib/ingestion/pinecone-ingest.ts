@@ -1,9 +1,6 @@
 import { nanoid } from 'nanoid';
-<<<<<<< HEAD
 import { getPineconeIndex } from '@/lib/pinecone';
-=======
-import { pineconeIndex } from '@/lib/pinecone';
->>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
+
 import { chunkText } from '@/lib/ingestion/chunking';
 
 export async function ingestTextIntoPinecone(input: {
@@ -32,16 +29,13 @@ export async function ingestTextIntoPinecone(input: {
     order: index,
   }));
 
-<<<<<<< HEAD
   const index = getPineconeIndex();
   if (!index) {
     throw new Error('Pinecone index is not configured');
   }
 
   await index.namespace(namespace).upsertRecords(records);
-=======
-  await pineconeIndex.namespace(namespace).upsertRecords(records);
->>>>>>> 2c0dfac5910032c84c5db1021f994e51ff0dadfd
+
 
   return { chunkCount: chunks.length };
 }
