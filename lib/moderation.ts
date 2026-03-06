@@ -60,7 +60,7 @@ export async function isContentFlagged(text: string): Promise<ModerationResult> 
     }
 
     const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
+        apiKey: process.env.OPENAI_API_KEY?.trim(),
     });
 
     try {

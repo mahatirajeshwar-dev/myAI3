@@ -22,7 +22,7 @@ import Link from "next/link";
 import { UploadPanel } from "@/components/ingestion/upload-panel";
 
 const STORAGE_KEY = 'abis_chat_messages';
-const TOKEN_KEY = 'abis_employee_token';
+const TOKEN_KEY = 'employee_token';
 const HISTORY_KEY = 'abis_chat_history';
 
 function parseJwt(token: string) {
@@ -45,7 +45,7 @@ const formSchema = z.object({
 // ... (authSchema and StoredData remain same)
 const authSchema = z.object({
     employeeId: z.string().min(1, "Employee ID is required"),
-    employeeName: z.string().optional(),
+    employeeName: z.string().min(1, "Name is required"),
 });
 
 type StoredData = {
@@ -55,6 +55,7 @@ type StoredData = {
 
 type HistoryItem = {
     id: string;
+    employeeId: string;
     timestamp: number;
     title: string;
     data: StoredData;
@@ -72,8 +73,8 @@ const saveMessagesToStorage = (messages: UIMessage[], durations: Record<string, 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 };
 
-const saveToHistory = (messages: UIMessage[], durations: Record<string, number>) => {
-    if (typeof window === 'undefined' || messages.length <= 1) return;
+const saveToHistory = (messages: UIMessage[], durations: Record<string, number>, employeeId: string) => {
+    if (typeof window === 'undefined' || messages.length <= 1 || !employeeId) return;
 
     // Don't save if only welcome message
     if (messages.length === 1 && messages[0].id.startsWith('welcome')) return;
@@ -84,6 +85,7 @@ const saveToHistory = (messages: UIMessage[], durations: Record<string, number>)
 
     const newItem: HistoryItem = {
         id: `chat-${Date.now()}`,
+        employeeId,
         timestamp: Date.now(),
         title,
         data: { messages, durations }
@@ -98,6 +100,8 @@ export default function ChatInterface() {
     const [token, setToken] = useState('');
     const [userRole, setUserRole] = useState<string | null>(null);
     const [showHistory, setShowHistory] = useState(false);
+    const [userName, setUserName] = useState<string | null>(null);
+    const [employeeId, setEmployeeId] = useState<string | null>(null);
     const tokenRef = useRef('');
     const welcomeMessageShownRef = useRef<boolean>(false);
     const [initialMessages] = useState<UIMessage[]>([]);
@@ -109,7 +113,11 @@ export default function ChatInterface() {
             setToken(storedToken);
             tokenRef.current = storedToken;
             const payload = parseJwt(storedToken);
-            if (payload) setUserRole(payload.role);
+            if (payload) {
+                setUserRole(payload.role);
+                setUserName(payload.name || null);
+                setEmployeeId(payload.sub || null);
+            }
         }
 
         const stored = loadMessagesFromStorage();
@@ -134,9 +142,15 @@ export default function ChatInterface() {
         tokenRef.current = token;
         if (token) {
             const payload = parseJwt(token);
-            if (payload) setUserRole(payload.role);
+            if (payload) {
+                setUserRole(payload.role);
+                setUserName(payload.name || null);
+                setEmployeeId(payload.sub || null);
+            }
         } else {
             setUserRole(null);
+            setUserName(null);
+            setEmployeeId(null);
         }
     }, [token]);
 
@@ -200,10 +214,24 @@ export default function ChatInterface() {
             tokenRef.current = newToken;
             localStorage.setItem(TOKEN_KEY, newToken);
 
-            const payload = parseJwt(newToken);
-            if (payload) setUserRole(payload.role);
+            const loginPayload = parseJwt(newToken);
+            if (loginPayload) {
+                setUserRole(loginPayload.role);
+                setUserName(loginPayload.name || null);
+                setEmployeeId(loginPayload.sub || null);
+            }
 
-            toast.success('Employee session started');
+            toast.success('Employee session started successfully.');
+
+            // Add personalized greeting to chat
+            const greetingName = loginPayload?.name || data.employeeName || 'Employee';
+            const sessionMessage: UIMessage = {
+                id: `session-${Date.now()}`,
+                role: "assistant",
+                parts: [{ type: "text", text: `Hi ${greetingName}, how can I help you today?` }],
+            };
+            setMessages((prev) => [...prev, sessionMessage]);
+
             authForm.reset();
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Login failed');
@@ -211,10 +239,6 @@ export default function ChatInterface() {
     }
 
     function onSubmit(data: z.infer<typeof formSchema>) {
-        if (!tokenRef.current) {
-            toast.error('Please login with employee ID to start chatting.');
-            return;
-        }
 
         // Explicitly pass headers for maximum reliability
         sendMessage({ text: data.message }, {
@@ -224,8 +248,8 @@ export default function ChatInterface() {
     }
 
     function clearChat(manual = true) {
-        if (messages.length > 1) {
-            saveToHistory(messages, durations);
+        if (messages.length > 1 && employeeId) {
+            saveToHistory(messages, durations, employeeId);
         }
         const welcomeMessage: UIMessage = {
             id: `welcome-${Date.now()}`,
@@ -240,27 +264,25 @@ export default function ChatInterface() {
         if (manual) toast.success("New chat started");
     }
 
-    function handleLogout() {
-        // Save current chat to history before logging out
-        if (messages.length > 1) {
-            saveToHistory(messages, durations);
+    const handleLogout = () => {
+        // Clear chat to history if needed
+        if (messages.length > 1 && employeeId) {
+            saveToHistory(messages, durations, employeeId);
         }
 
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(STORAGE_KEY);
         setToken('');
         tokenRef.current = '';
         setUserRole(null);
-        localStorage.removeItem(TOKEN_KEY);
-
-        // Clear chat state and storage
-        const newMessages: UIMessage[] = [];
-        const newDurations = {};
-        setMessages(newMessages);
-        setDurations(newDurations);
-        localStorage.removeItem(STORAGE_KEY);
+        setUserName(null);
+        setEmployeeId(null);
+        setMessages([]);
+        setDurations({});
         welcomeMessageShownRef.current = false;
 
         toast.success("Logged out. Chat cleared.");
-    }
+    };
 
     return (
         <div className="flex h-screen items-center justify-center font-sans">
@@ -271,15 +293,17 @@ export default function ChatInterface() {
                             <ChatHeaderBlock>
                                 {!token ? (
                                     <form className="flex gap-2" onSubmit={authForm.handleSubmit(handleLogin)}>
-                                        <Input {...authForm.register('employeeId')} placeholder="Employee ID" className="h-9 w-32 rounded-full border-border/60" />
-                                        <Input {...authForm.register('employeeName')} placeholder="Name" className="h-9 w-36 rounded-full border-border/60" />
+                                        <Input {...authForm.register('employeeId')} placeholder="ID" className="h-9 w-24 rounded-full border-border/60" />
+                                        <Input {...authForm.register('employeeName')} placeholder="Name" className="h-9 w-24 rounded-full border-border/60" />
                                         <Button type="submit" size="sm" className="rounded-full px-5">Login</Button>
                                     </form>
                                 ) : (
-                                    <div className="flex gap-2">
-                                        <Button size="sm" variant="outline" className="rounded-full border-border/60 hover:bg-muted" onClick={handleLogout}>
-                                            Logout
-                                        </Button>
+                                    <div className="flex gap-2 items-center">
+                                        {userName && (
+                                            <span className="text-xs font-semibold px-4 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
+                                                Welcome, {userName}
+                                            </span>
+                                        )}
                                         {userRole === 'employee' && (
                                             <Button size="sm" variant={showHistory ? "default" : "outline"} className="rounded-full border-border/60" onClick={() => setShowHistory(!showHistory)}>
                                                 {showHistory ? "Back" : "History"}
@@ -302,7 +326,12 @@ export default function ChatInterface() {
                                     </div>
                                 </div>
                             </ChatHeaderBlock>
-                            <ChatHeaderBlock className="justify-end">
+                            <ChatHeaderBlock className="justify-end gap-2">
+                                {token && (
+                                    <Button size="sm" variant="ghost" className="rounded-full border border-border/60 hover:bg-muted font-semibold text-xs" onClick={handleLogout}>
+                                        Logout
+                                    </Button>
+                                )}
                                 <Button variant="ghost" size="sm" className="cursor-pointer hover:bg-muted rounded-full" onClick={() => clearChat(true)}>
                                     <Plus className="size-4 mr-1 text-primary" />
                                     <span className="text-xs font-semibold">{CLEAR_CHAT_TEXT}</span>
@@ -321,27 +350,29 @@ export default function ChatInterface() {
                                     <span className="text-xs font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full">Last 50 chats</span>
                                 </div>
                                 <div className="grid grid-cols-1 gap-3">
-                                    {(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') as HistoryItem[]).map((item) => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => {
-                                                setMessages(item.data.messages);
-                                                setDurations(item.data.durations);
-                                                setShowHistory(false);
-                                                toast.success("Loaded chat session");
-                                            }}
-                                            className="w-full text-left p-4 rounded-2xl hover:bg-muted/80 border border-border/40 hover:border-primary/20 transition-all group relative overflow-hidden"
-                                        >
-                                            <div className="relative z-10 text-sm font-semibold truncate group-hover:text-primary transition-colors">{item.title}</div>
-                                            <div className="relative z-10 text-[10px] text-muted-foreground mt-1 flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                                                {new Date(item.timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                                            </div>
-                                            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <ArrowUp className="size-4 rotate-45 text-primary" />
-                                            </div>
-                                        </button>
-                                    ))}
+                                    {(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') as HistoryItem[])
+                                        .filter(item => item.employeeId === employeeId)
+                                        .map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => {
+                                                    setMessages(item.data.messages);
+                                                    setDurations(item.data.durations);
+                                                    setShowHistory(false);
+                                                    toast.success("Loaded chat session");
+                                                }}
+                                                className="w-full text-left p-4 rounded-2xl hover:bg-muted/80 border border-border/40 hover:border-primary/20 transition-all group relative overflow-hidden"
+                                            >
+                                                <div className="relative z-10 text-sm font-semibold truncate group-hover:text-primary transition-colors">{item.title}</div>
+                                                <div className="relative z-10 text-[10px] text-muted-foreground mt-1 flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                                                    {new Date(item.timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                </div>
+                                                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <ArrowUp className="size-4 rotate-45 text-primary" />
+                                                </div>
+                                            </button>
+                                        ))}
                                     {(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') as HistoryItem[]).length === 0 && (
                                         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/60 italic border-2 border-dashed border-border/40 rounded-3xl">
                                             <p className="text-sm">No previous conversations found</p>

@@ -4,7 +4,7 @@ import { verifyEmployeeToken } from '@/lib/auth/jwt';
 export async function middleware(request: NextRequest) {
 
 
-  const isProtectedPath = request.nextUrl.pathname.startsWith('/api/chat') || request.nextUrl.pathname.startsWith('/api/ingestion');
+  const isProtectedPath = request.nextUrl.pathname.startsWith('/api/ingestion');
 
   if (!isProtectedPath) {
     return NextResponse.next();
@@ -32,5 +32,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/chat/:path*', '/api/ingestion/:path*'],
+  matcher: ['/api/ingestion/:path*'],
 };

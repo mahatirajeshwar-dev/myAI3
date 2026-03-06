@@ -14,14 +14,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'employeeId is required' }, { status: 400 });
   }
 
-  const allowList = process.env.ALLOWED_EMPLOYEE_IDS
-    ?.split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
 
-  if (allowList?.length && !allowList.includes(employeeId)) {
-    return NextResponse.json({ error: 'Unauthorized employee ID' }, { status: 403 });
-  }
 
   try {
     const token = await issueEmployeeToken({

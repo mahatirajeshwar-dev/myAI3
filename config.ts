@@ -6,14 +6,27 @@ const AI_PROVIDER = process.env.AI_PROVIDER?.toLowerCase() ?? "openai";
 function createModel(): LanguageModel {
   if (AI_PROVIDER === "openrouter") {
     const openrouter = createOpenAI({
-      apiKey: process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY?.trim(),
       baseURL: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
     });
 
     return openrouter.chat(process.env.OPENROUTER_MODEL ?? "openai/gpt-4.1-mini");
   }
 
-  return openai(process.env.OPENAI_MODEL ?? "gpt-4o");
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+
+  if (apiKey) {
+    const maskedKey = `${apiKey.substring(0, 7)}...${apiKey.substring(apiKey.length - 3)}`;
+    console.log(`>>> OpenAI API Key detected: ${maskedKey} (Length: ${apiKey.length})`);
+  } else {
+    console.warn(">>> OPENAI_API_KEY is not set in environment variables.");
+  }
+
+  const customOpenAI = createOpenAI({
+    apiKey: apiKey || undefined,
+  });
+
+  return customOpenAI.chat(process.env.OPENAI_MODEL ?? "gpt-4o");
 }
 
 export const MODEL = createModel();
