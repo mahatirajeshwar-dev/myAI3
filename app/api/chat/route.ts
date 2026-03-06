@@ -4,8 +4,7 @@ import { streamText, UIMessage, convertToModelMessages, stepCountIs, createUIMes
 import { MODEL } from '@/config';
 import { SYSTEM_PROMPT } from '@/prompts';
 import { isContentFlagged } from '@/lib/moderation';
-import { webSearch } from './tools/web-search';
-import { vectorDatabaseSearch } from './tools/search-vector-database';
+import { searchPinecone } from '@/lib/pinecone';
 import { verifyEmployeeToken } from '@/lib/auth/jwt';
 import { reportSafetyIncident } from './tools/report-safety-incident';
 
@@ -45,14 +44,20 @@ export async function POST(req: Request) {
         .filter(msg => msg.role === 'user')
         .pop();
 
+    let userMessageText = '';
+    let contextData = '';
+
     if (latestUserMessage) {
-        const textParts = latestUserMessage.parts
+        userMessageText = latestUserMessage.parts
             .filter(part => part.type === 'text')
             .map(part => 'text' in part ? part.text : '')
             .join('');
 
-        if (textParts) {
-            const moderationResult = await isContentFlagged(textParts);
+        if (userMessageText) {
+            const filter = user ? { access_level: { $lte: user.role } } : undefined;
+            contextData = await searchPinecone(userMessageText, filter);
+
+            const moderationResult = await isContentFlagged(userMessageText);
 
             if (moderationResult.flagged) {
                 safetyWarning = `
@@ -74,13 +79,24 @@ Role: ${user.role}
 </user_context>
 ` : '';
 
+    const dynamicSystemPrompt = `You are AIRA (ABIS Internal Resource Assistant). Answer using ONLY the company policy documents below. If the answer is not in the documents, say that the policy was not found.
+
+Context:
+${contextData}
+
+User question:
+${userMessageText}
+
+${SYSTEM_PROMPT}
+
+${userContext}
+${safetyWarning}`;
+
     const result = streamText({
         model: MODEL,
-        system: `${SYSTEM_PROMPT}\n${userContext}\n${safetyWarning}`,
+        system: dynamicSystemPrompt,
         messages: convertToModelMessages(messages),
         tools: {
-            webSearch,
-            vectorDatabaseSearch,
             reportSafetyIncident,
         },
         When: stepCountIs(10),
